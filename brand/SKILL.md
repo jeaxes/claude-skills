@@ -1,122 +1,108 @@
 ---
-model_tier: inherit
 name: brand
-description: "Grounded brand decisions from a curated corpus — archetype, voice, naming, colour psychology, logo-style fit, messaging frameworks, archetype→type mapping. Use to ground brand strategy and identity."
-domain: engineering
-personas:
-  - brand-strategist
-workspaces:
-  - engineering
-packs:
-  - brand
-trust:
-  level: professional
-install:
-  removable: true
-scope:
-  write: []
-  verification_reason: "execution declares no handler, so this skill runs nothing of its own — every write is the calling agent's, under the rules that govern it. No command can prove a scope the skill never executes."
-execution:
-  type: manual
+description: Brand voice, visual identity, messaging frameworks, asset management, brand consistency. Activate for branded content, tone of voice, marketing assets, brand compliance, style guides.
+argument-hint: "[update|review|create] [args]"
+metadata:
+  author: claudekit
+  version: "1.0.0"
 ---
 
-# brand
+# Brand
 
-> The grounded source for brand decisions — a **second instance of the
-> ADR-061 corpus-grounding layer** ([`corpus-grounding`](../corpus-grounding/SKILL.md)),
-> after [`design-intelligence`](../design-intelligence/SKILL.md). Branding is
-> the layer that *constrains* UI: the corpus grounds brand **strategy** and
-> **identity** decisions (archetype, voice, naming, colour, logo style,
-> messaging, archetype→type filter) as a **constraint set** the human confirms —
-> never the final brand. No forked engine; this plugs into the shared one via a
-> manifest.
+Brand identity, voice, messaging, asset management, and consistency frameworks.
 
-Corpus: 7 tabular CSVs under [`data/`](data/) — 12 brand `archetype`s, a
-`voice`-and-tone matrix, `naming` patterns, `color` psychology by industry,
-`logo`-style ↔ industry fit, `messaging` frameworks, and
-`typography`-principles (archetype → pairing-filter Grounding, the layer that
-upgrades [`typography-system`](../typography-system/SKILL.md) stage-2).
-Provenance: [`ATTRIBUTION.md`](ATTRIBUTION.md); manifest:
-[`data/manifest.json`](data/manifest.json).
+## When to Use
 
-## When to use
+- Brand voice definition and content tone guidance
+- Visual identity standards and style guide development
+- Messaging framework creation
+- Brand consistency review and audit
+- Asset organization, naming, and approval
+- Color palette management and typography specs
 
-- A brand decision needs grounding: which archetype fits, what voice/tone,
-  how to name, which colour direction, which logo style, which messaging
-  framework, or which type pairing-filter an archetype implies.
-- Before [`brand-strategy`](../brand-strategy/SKILL.md) /
-  [`brand-identity`](../brand-identity/SKILL.md) commit to a direction — those
-  skills consult this corpus first.
-- When `typography-system` needs the brand-aware (archetype → pairing-filter)
-  upgrade — query the `typography` domain here.
+## Script Paths
 
-## Procedure: consult the brand corpus
+Script paths in this skill and its `references/` are relative to the directory that contains this SKILL.md, not to the project: `scripts/<file>` is this skill's own `scripts/` folder, and `../<skill>/scripts/<file>` is a sibling sub-skill installed alongside it. Build the full path from that directory (Claude Code reports it as the skill's base directory when the skill loads) and keep the working directory at the project root — the scripts read and write project files such as `docs/brand-guidelines.md`, `assets/design-tokens.json` or `src/` relative to it.
 
-1. **Ground or search** (paths resolve skill-relative; works from any cwd):
+## Quick Start
 
-   ```bash
-   node <skills-root>/corpus-grounding/scripts/ground.mjs search \
-     --manifest <skills-root>/brand/data/manifest.json \
-     "<brand brief: sector + intent + audience>" \
-     [--domain archetype|voice|naming|color|logo|messaging|typography] \
-     [--filter "Archetype Fit=Ruler"] [--json]
-   ```
+**Inject brand context into prompts:**
+```bash
+node scripts/inject-brand-context.cjs
+node scripts/inject-brand-context.cjs --json
+```
 
-   `<skills-root>` is `~/.claude/skills/` for Claude Code installs,
-   `src/skills/` inside this repo.
-2. **Read `confidence` + every `evidence_gap` line before trusting any row** —
-   surface them; the human signs off on what the corpus could NOT support.
-3. **Propose grounded options** (archetype + voice + colour + logo + messaging),
-   each cited per corpus row, with alternatives — the human confirms.
-4. The confirmed selections become the **brand token + voice constraint set**
-   that `brand-to-tokens`, `brand-source-of-truth` § Iron Law 2, and pack-ai-image's brand-asset
-   generation consume.
+**Validate an asset:**
+```bash
+node scripts/validate-asset.cjs <asset-path>
+```
 
-## Output format
+**Extract/compare colors:**
+```bash
+node scripts/extract-colors.cjs --palette
+node scripts/extract-colors.cjs <image-path>
+```
 
-1. Grounded brand candidates per domain (archetype, voice, naming, colour,
-   logo style, messaging, type filter) — each selection cited per corpus row.
-2. The grounded output's `confidence` label + every `evidence_gap` line,
-   verbatim.
-3. Alternatives per domain so the human can swap before confirming.
+## Brand Sync Workflow
 
-## Do NOT
+```bash
+# 1. Edit docs/brand-guidelines.md (or use /brand update)
+# 2. Sync to design tokens
+node scripts/sync-brand-to-tokens.cjs
+# 3. Verify
+node scripts/inject-brand-context.cjs --json | head -20
+```
 
-- Do NOT report a trademark position from the corpus. `Trademark Risk` in
-  `data/naming-patterns.csv` rates the PATTERN, not the name on the table. A
-  candidate leaves with a check that was RUN — registry, date, result — or
-  with "not checked". The column alone reads as a clearance nobody performed.
-- Do NOT let the corpus author final brand copy or names — it supplies
-  constraint sets and patterns; final strings are agent-written and
-  human-confirmed.
-- Do NOT fork the engine — plug in via the manifest (ADR-061 §2).
-- Do NOT override the consumer's existing brand tokens / voice profile with
-  corpus rows — consumer brand is the source of truth; the corpus fills gaps
-  (see [`brand-source-of-truth`](../../rules/brand-source-of-truth.md)).
-- Do NOT hide low confidence — the user signs off on the gaps too.
+The sync stops when it detects existing token files, `:root` custom properties
+or Tailwind v4 `@theme` variables in common CSS entry points and their local
+CSS imports, or Tailwind theme colors and presets. Review the reported source
+before proceeding. If the detected files are the managed
+`assets/design-tokens.*` outputs from an earlier sync and replacing them is
+intentional, re-run with `--force`.
 
-## Gotchas
+**Files synced:**
+- `docs/brand-guidelines.md` → Source of truth
+- `assets/design-tokens.json` → Token definitions
+- `assets/design-tokens.css` → CSS variables
 
-- Corpus grounds **pre-action selection** — not mid-task reference and not
-  output validation (`brand-source-of-truth` § Iron Law 2
-  owns validation).
-- Keep queries brand-shaped ("luxury law firm rebrand", "playful kids snack
-  brand") — generic words land on the default `archetype` domain.
-- An empty result is a legitimate outcome — surface the evidence gap and
-  proceed on priors; never widen filters to force a hit.
-- BM25 drops tokens ≤2 chars — pad short queries ("B2B", "AI") with companions.
+## Subcommands
 
-## See also
+| Subcommand | Description | Reference |
+|------------|-------------|-----------|
+| `update` | Update brand identity and sync to all design systems | `references/update.md` |
 
-- [`corpus-grounding`](../corpus-grounding/SKILL.md) — the shared engine + manifest contract.
-- [`brand-strategy`](../brand-strategy/SKILL.md) / [`brand-identity`](../brand-identity/SKILL.md) — the workflow skills that consult this corpus.
-- [`design-intelligence`](../design-intelligence/SKILL.md) — sibling corpus instance (style); brand constrains style.
-- [`typography-system`](../typography-system/SKILL.md) — consumes the `typography` (archetype→filter) domain for its brand-aware stage-2.
+## References
 
-## Policies
+| Topic | File |
+|-------|------|
+| Voice Framework | `references/voice-framework.md` |
+| Visual Identity | `references/visual-identity.md` |
+| Messaging | `references/messaging-framework.md` |
+| Consistency | `references/consistency-checklist.md` |
+| Guidelines Template | `references/brand-guideline-template.md` |
+| Asset Organization | `references/asset-organization.md` |
+| Color Management | `references/color-palette-management.md` |
+| Typography | `references/typography-specifications.md` |
+| Logo Usage | `references/logo-usage-rules.md` |
+| Approval Checklist | `references/approval-checklist.md` |
 
-- Provenance: [`ATTRIBUTION.md`](ATTRIBUTION.md) — original-authored corpus
-  from public brand frameworks; shared engine attributed in
-  [`design-intelligence/ATTRIBUTION.md`](../design-intelligence/ATTRIBUTION.md).
-- Refresh: quarterly per the manifest; re-review archetype↔type rows when the
-  font-pairings Reference refreshes.
+## Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/inject-brand-context.cjs` | Extract brand context for prompt injection |
+| `scripts/sync-brand-to-tokens.cjs` | Sync brand-guidelines.md → design-tokens.json/css |
+| `scripts/validate-asset.cjs` | Validate asset naming, size, format |
+| `scripts/extract-colors.cjs` | Extract and compare colors against palette |
+
+## Templates
+
+| Template | Purpose |
+|----------|---------|
+| `templates/brand-guidelines-starter.md` | Complete starter template for new brands |
+
+## Routing
+
+1. Parse subcommand from `$ARGUMENTS` (first word)
+2. Load corresponding `references/{subcommand}.md`
+3. Execute with remaining arguments
